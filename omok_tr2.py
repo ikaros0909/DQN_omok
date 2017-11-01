@@ -27,8 +27,8 @@ class DQNAgent:
 		self.exploration_steps = 1000000.
 		self.epsilon_decay_step = (self.epsilon_start - self.epsilon_end) / self.exploration_steps
 		self.batch_size = 32
-		self.train_start = 50000
-		self.update_target_rate = 1000
+		self.train_start = 1000
+		self.update_target_rate = 100
 		self.discount_factor = 0.99
 		# 리플레이 메모리, 최대 크기
 		self.memory = deque(maxlen=50000)
@@ -98,7 +98,7 @@ class DQNAgent:
 				_action = np.argmax(q_value[0])
 				if history[0,_action//15,_action%15,0] == 0 and history[0,_action//15,_action%15,8] == 0:
 					return _action
-				q_value[0,_action] = -1000
+				q_value[0,_action] = np.min(q_value[0])
     # 샘플 <s, a, r, s'>을 리플레이 메모리에 저장
 	def append_sample(self, history, action, reward, next_history):
 		self.memory.append((history, action, reward, next_history))
@@ -317,8 +317,13 @@ if __name__ == "__main__":
 			move_state[:,:,:,9:15] = state[:,:,:,8:14]						
 			move_state[0,move_x,move_y,0] = 1
 			
+			undo_move_state = np.copy(move_state)
+			undo_move_state[:,:,:,0:7] = move_state[:,:,:,8:15]
+			undo_move_state[:,:,:,8:15] = move_state[:,:,:,0:7]
+			undo_move_state[:,:,:,16] = (move+1)%2
+			
 			if done == True:
-				agent[(move)%2].append_sample(state, action[(move)%2], 100, move_state)
+				agent[(move)%2].append_sample(state, action[(move)%2], 1, move_state)
 				agent[(move+1)%2].append_sample(undo_state, action[(move+1)%2], -100, undo_move_state)
 			elif move > 1:
 				agent[(move+1)%2].append_sample(undo_state, action[(move+1)%2], 0, undo_move_state)
@@ -345,8 +350,6 @@ if __name__ == "__main__":
 				break
 			elif move < 225:
 				undo_state = np.copy(state)
-				undo_move_state = np.copy(move_state)
-			
 				state[:,:,:,0:7] = move_state[:,:,:,8:15]
 				state[:,:,:,8:15] = move_state[:,:,:,0:7]
 				state[:,:,:,16] = (move+1)%2			
